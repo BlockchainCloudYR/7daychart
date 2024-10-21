@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7-Day Crypto Real-Time Charts</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            width: 500px;
+            height: 250px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Add loading spinner styles */
+        .loading {
+            text-align: center;
+            color: #999;
+            font-size: 1.2em;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Hide loading indicator when chart is loaded */
+        .loaded .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>Real-Time Cryptocurrency Prices</h2>
+
+    <div id="charts">
+        <!-- Chart containers for each coin -->
+        <div class="chart-container" id="btc-container">
+            <div class="loading">Loading BTC...</div>
+            <canvas id="btcChart"></canvas>
+        </div>
+        <div class="chart-container" id="eth-container">
+            <div class="loading">Loading ETH...</div>
+            <canvas id="ethChart"></canvas>
+        </div>
+        <div class="chart-container" id="sol-container">
+            <div class="loading">Loading SOL...</div>
+            <canvas id="solChart"></canvas>
+        </div>
+        <div class="chart-container" id="bnb-container">
+            <div class="loading">Loading BNB...</div>
+            <canvas id="bnbChart"></canvas>
+        </div>
+        <div class="chart-container" id="avax-container">
+            <div class="loading">Loading AVAX...</div>
+            <canvas id="avaxChart"></canvas>
+        </div>
+        <div class="chart-container" id="op-container">
+            <div class="loading">Loading OPTIMISM...</div>
+            <canvas id="opChart"></canvas>
+        </div>
+        <div class="chart-container" id="arbi-container">
+            <div class="loading">Loading ARBITRUM...</div>
+            <canvas id="arbiChart"></canvas>
+        </div>
+        <div class="chart-container" id="fantom-container">
+            <div class="loading">Loading FANTOM...</div>
+            <canvas id="fantomChart"></canvas>
+        </div>
+        <div class="chart-container" id="conflux-container">
+            <div class="loading">Loading CONFLUX...</div>
+            <canvas id="confluxChart"></canvas>
+        </div>
+        <div class="chart-container" id="kava-container">
+            <div class="loading">Loading KAVA...</div>
+            <canvas id="kavaChart"></canvas>
+        </div>
+        <div class="chart-container" id="moonbeam-container">
+            <div class="loading">Loading MOONBEAM...</div>
+            <canvas id="moonbeamChart"></canvas>
+        </div>
+
+
+
+    </div>
+
+    <script>
+        const coins = [
+            {id: 'btcChart', apiUrl: '/api/bitcoin-prices', color: '#FFD700', label: 'BTC'},
+            {id: 'ethChart', apiUrl: '/api/ethereum-prices', color: '#00BFFF', label: 'ETH'},
+            {id: 'solChart', apiUrl: '/api/solana-prices', color: '#32CD32', label: 'SOL'},
+            {id: 'bnbChart', apiUrl: '/api/bnb-prices', color: '#FFD700', label: 'BNB'},
+            {id: 'avaxChart', apiUrl: '/api/avax-prices', color: '#FF4500', label: 'AVAX'},
+            {id: 'opChart', apiUrl: '/api/optimism-prices', color: '#FF4500', label: 'OP'},
+            {id: 'arbiChart', apiUrl: '/api/arbitrum-prices', color: '#6495ED', label: 'ARBI'},
+            {id: 'fantomChart', apiUrl: '/api/fantom-prices', color: '#4169E1', label: 'FANTOM'},
+            {id: 'confluxChart', apiUrl: '/api/conflux-prices', color: '#00FF7F', label: 'CONFLUX'},
+            {id: 'kavaChart', apiUrl: '/api/kava-prices', color: '#FF6347', label: 'KAVA'},
+            {id: 'moonbeamChart', apiUrl: '/api/moonbeam-prices', color: '#8A2BE2', label: 'MOONBEAM'},
+        ];
+
+        const createChart = (ctx, data, color, label) => {
+            const labels = data.map(entry => {
+                const date = new Date(entry.date);
+                return `${date.getDate()}/${date.getMonth() + 1} ${date.getHours()}:${date.getMinutes()}`;
+            });
+            const prices = data.map(entry => entry.price);
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${label} Price (USD)`,
+                        data: prices,
+                        borderColor: color,
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: false
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    }
+                }
+            });
+        };
+
+        const saveDataToLocalStorage = (key, data) => {
+            localStorage.setItem(key, JSON.stringify(data));
+        };
+
+        const loadDataFromLocalStorage = (key) => {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        };
+
+        // Fetch price data and create charts for each coin
+        coins.forEach(coin => {
+            const container = document.getElementById(coin.id).parentElement;
+
+            // Try loading from local storage first
+            const cachedData = loadDataFromLocalStorage(coin.id);
+            if (cachedData) {
+                container.classList.add('loaded'); // Hide loading indicator
+                const ctx = document.getElementById(coin.id).getContext('2d');
+                createChart(ctx, cachedData, coin.color, coin.label);
+            } else {
+                // Fetch new data if no cache available
+                fetch(coin.apiUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        container.classList.add('loaded'); // Hide loading indicator
+                        if (Array.isArray(data) && data.length > 0) {
+                            saveDataToLocalStorage(coin.id, data); // Save data to local storage
+                            const ctx = document.getElementById(coin.id).getContext('2d');
+                            createChart(ctx, data, coin.color, coin.label);
+                        } else {
+                            container.querySelector('.loading').textContent = 'No data available';
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error fetching ${coin.label} data:`, error);
+                        container.querySelector('.loading').textContent = 'Error loading data';
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
